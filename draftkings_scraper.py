@@ -1,7 +1,7 @@
 import requests
 import pandas as pd
 
-def scrape_draftkings_nfl():
+def scrape_draftkings_lines():
     headers = {
         'User-Agent': 'Mozilla/5.0',
         'Referer': 'https://sportsbook.draftkings.com/'
