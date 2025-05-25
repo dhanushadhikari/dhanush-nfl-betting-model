@@ -1,30 +1,44 @@
+# main.py
 import streamlit as st
 from draftkings_scraper import scrape_draftkings_lines
 from model.predictor import load_model_and_data, make_predictions
 
-@st.cache_data(ttl=600)  # cache for 10 minutes
-def get_odds():
-    return scrape_draftkings_lines()
+st.title("🏈 NFL Betting Model")
+st.write("This app fetches DraftKings betting lines, predicts outcomes using a machine learning model, and highlights edges.")
 
-@st.cache_resource
-def get_model_and_features():
-    return load_model_and_data()
+# Step 1: Fetch lines
+st.write("📡 Step 1: Scraping DraftKings lines...")
+try:
+    odds_df = scrape_draftkings_lines()
+    st.write("✅ Odds scraped successfully!")
+    st.write(odds_df.head())
+except Exception as e:
+    st.error(f"❌ Error scraping DraftKings lines: {e}")
+    st.stop()
 
-def main():
-    st.title("NFL Betting Value Finder")
+if odds_df.empty:
+    st.error("❌ No odds found. The scraper may be broken or blocked.")
+    st.stop()
 
-    st.write("Click the button below to fetch the latest DraftKings odds and run predictions.")
-    if st.button("Fetch and Predict"):
-        with st.spinner("Fetching DraftKings odds..."):
-            odds_df = get_odds()
-        with st.spinner("Loading model..."):
-            model, features_df = get_model_and_features()
-        with st.spinner("Making predictions..."):
-            results_df = make_predictions(model, features_df, odds_df)
-        st.write("Predicted vs DraftKings Lines")
-        st.dataframe(results_df)
-    else:
-        st.info("Press the button to start the analysis.")
+# Step 2: Load model and features
+st.write("🧠 Step 2: Loading model and features...")
+try:
+    model, features_df = load_model_and_data()
+    st.write("✅ Model and feature data loaded!")
+    st.write(features_df.head())
+except Exception as e:
+    st.error(f"❌ Error loading model or data: {e}")
+    st.stop()
 
-if __name__ == "__main__":
-    main()
+if features_df.empty:
+    st.error("❌ Feature data is empty.")
+    st.stop()
+
+# Step 3: Predict and display
+st.write("📊 Step 3: Making predictions...")
+try:
+    predictions_df = make_predictions(model, features_df, odds_df)
+    st.success("✅ Predictions complete!")
+    st.dataframe(predictions_df)
+except Exception as e:
+    st.error(f"❌ Prediction failed: {e}")
