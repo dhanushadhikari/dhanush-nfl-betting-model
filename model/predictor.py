@@ -21,14 +21,30 @@ def load_model_and_data():
     return model, features_df
 
 def make_predictions(model, features_df, odds_df):
-    # Matchup key
+    # Create a matchup key for merging
     odds_df['matchup'] = odds_df['home_team'] + ' vs ' + odds_df['away_team']
     features_df['matchup'] = features_df['home_team'] + ' vs ' + features_df['away_team']
 
-    df_merged = pd.merge(features_df, odds_df, on='matchup', how='inner')
+    # Merge with suffixes to retain both team columns
+    df_merged = pd.merge(
+        features_df,
+        odds_df,
+        on='matchup',
+        how='inner',
+        suffixes=('_features', '_odds')
+    )
 
-    # Placeholder: use dummy numeric features for prediction
+    # Rename columns for consistent output
+    df_merged = df_merged.rename(columns={
+        'home_team_features': 'home_team',
+        'away_team_features': 'away_team'
+    })
+
+    # Predict spread and calculate edge
     df_merged['model_predicted_spread'] = model.predict(df_merged[["feature_1", "feature_2"]])
     df_merged['edge'] = df_merged['spread'] - df_merged['model_predicted_spread']
 
-    return df_merged[['home_team', 'away_team', 'spread', 'model_predicted_spread', 'edge', 'total', 'moneyline_home']]
+    return df_merged[[
+        'home_team', 'away_team', 'spread', 'model_predicted_spread',
+        'edge', 'total', 'moneyline_home'
+    ]]
