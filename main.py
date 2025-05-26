@@ -1,56 +1,43 @@
-# main.py
+
 import streamlit as st
-from draftkings_scraper import scrape_draftkings_lines
-from model.predictor import load_model_and_data, make_predictions
 import pandas as pd
 
-st.set_page_config(page_title="NFL Betting Model", layout="centered")
-st.title("🏈 NFL Betting Model")
-st.write("Fetch DraftKings odds, run the model, and find +EV opportunities.")
+from draftkings_scraper import scrape_draftkings_lines
+from feature_engineering import engineer_features
+from predictor import predict_spread, predict_moneyline
 
-# Button to trigger scraping and predictions
-if st.button("📈 Fetch and Predict"):
+st.set_page_config(page_title="NFL Betting Model", layout="wide")
 
-    with st.spinner("Scraping DraftKings odds..."):
+st.title("🏈 NFL Betting Prediction Dashboard")
+st.markdown("This app scrapes DraftKings lines, generates features, and predicts outcomes using machine learning models.")
+
+# Sidebar controls
+market = st.sidebar.radio("Select Market", ("Point Spread", "Moneyline"))
+show_edges = st.sidebar.checkbox("Show Only Value Bets", value=True)
+
+if st.button("Fetch and Predict"):
+    with st.spinner("Scraping DraftKings and running predictions..."):
         try:
-            odds_df = scrape_draftkings_lines()
+            # Step 1: Scrape lines
+            df_lines = scrape_draftkings_lines()
+
+            # Step 2: Generate features
+            df_features = engineer_features(df_lines)
+
+            # Step 3: Predict
+            if market == "Point Spread":
+                df_preds = predict_spread(df_features)
+            else:
+                df_preds = predict_moneyline(df_features)
+
+            # Show results
+            if show_edges:
+                df_preds = df_preds[df_preds["value"] == True]
+
+            st.success(f"Found {len(df_preds)} predictions.")
+            st.dataframe(df_preds.reset_index(drop=True))
+
         except Exception as e:
-            st.error("❌ Failed to scrape DraftKings odds.")
-            st.exception(e)
-            odds_df = pd.DataFrame()  # Fallback to empty
-
-    if odds_df.empty or 'home_team' not in odds_df.columns:
-        st.error("❌ No valid betting lines found. DraftKings may have blocked scraping or structure changed.")
-        st.stop()
-    else:
-        st.success("✅ DraftKings odds scraped!")
-        st.write(odds_df.head())
-
-    # Load model and features
-    with st.spinner("Loading model and feature data..."):
-        try:
-            model, features_df = load_model_and_data()
-        except Exception as e:
-            st.error("❌ Failed to load model or feature data.")
-            st.exception(e)
-            st.stop()
-
-    if features_df.empty or 'home_team' not in features_df.columns:
-        st.error("❌ Feature data appears to be missing or invalid.")
-        st.stop()
-
-    st.success("✅ Model and features loaded!")
-    st.write(features_df.head())
-
-    # Make predictions
-    with st.spinner("Running predictions..."):
-        try:
-            predictions_df = make_predictions(model, features_df, odds_df)
-            if predictions_df.empty:
-                st.warning("⚠️ No matchups matched between features and odds. Check formatting.")
-                st.stop()
-            st.success("✅ Predictions complete!")
-            st.dataframe(predictions_df)
-        except Exception as e:
-            st.error("❌ Prediction step failed.")
-            st.exception(e)
+            st.error(f"An error occurred: {e}")
+else:
+    st.info("Click the button above to fetch odds and generate predictions.")
